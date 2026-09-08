@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>三子棋 - 井字棋小游戏</title>
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --board-bg: #16213e;
+            --cell-bg: #0f3460;
+            --cell-hover: #1a4a7a;
+            --x-color: #e94560;
+            --o-color: #53d8fb;
+            --win-color: #ffd700;
+            --text: #ffffff;
+            --subtext: #a0aec0;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            --radius: 16px;
+            --cell-radius: 12px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: var(--bg);
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            padding: 20px;
+        }
+
+        .game-container {
+            background: var(--board-bg);
+            border-radius: var(--radius);
+            padding: 30px 25px 25px;
+            box-shadow: var(--shadow);
+            text-align: center;
+            max-width: 420px;
+            width: 100%;
+        }
+
+        .game-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+        }
+
+        .game-title span.x {
+            color: var(--x-color);
+        }
+        .game-title span.o {
+            color: var(--o-color);
+        }
+
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin: 18px 0 20px;
+            min-height: 50px;
+        }
+
+        .player-indicator {
+            font-size: 1.1rem;
+            font-weight: 600;
+            padding: 8px 18px;
+            border-radius: 20px;
+            background: var(--cell-bg);
+            color: var(--subtext);
+            transition: all 0.3s ease;
+            letter-spacing: 0.5px;
+        }
+
+        .player-indicator.active-x {
+            background: rgba(233, 69, 96, 0.2);
+            color: var(--x-color);
+            box-shadow: 0 0 20px rgba(233, 69, 96, 0.35);
+            border: 1.5px solid var(--x-color);
+        }
+
+        .player-indicator.active-o {
+            background: rgba(83, 216, 251, 0.15);
+            color: var(--o-color);
+            box-shadow: 0 0 20px rgba(83, 216, 251, 0.3);
+            border: 1.5px solid var(--o-color);
+        }
+
+        .player-indicator.win-highlight {
+            animation: pulse-glow 0.6s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulse-glow {
+            from {
+                box-shadow: 0 0 12px var(--win-color);
+            }
+            to {
+                box-shadow: 0 0 28px var(--win-color);
+            }
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 0 auto 20px;
+            aspect-ratio: 1;
+            width: 100%;
+            max-width: 330px;
+        }
+
+        .cell {
+            background: var(--cell-bg);
+            border: none;
+            border-radius: var(--cell-radius);
+            cursor: pointer;
+            font-size: 3.2rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            aspect-ratio: 1;
+            position: relative;
+            color: transparent;
+            -webkit-tap-highlight-color: transparent;
+            outline: none;
+        }
+
+        .cell:hover:not(.filled):not(.game-over) {
+            background: var(--cell-hover);
+            transform: scale(1.03);
+            box-shadow: 0 4px 16px rgba(255, 255, 255, 0.08);
+        }
+
+        .cell:active:not(.filled):not(.game-over) {
+            transform: scale(0.95);
+        }
+
+        .cell.filled {
+            cursor: default;
+        }
+
+        .cell.x-symbol {
+            color: var(--x-color);
+            text-shadow: 0 0 20px rgba(233, 69, 96, 0.55);
+        }
+
+        .cell.o-symbol {
+            color: var(--o-color);
+            text-shadow: 0 0 20px rgba(83, 216, 251, 0.55);
+        }
+
+        .cell.win-cell {
+            animation: win-flash 0.5s ease-in-out infinite alternate;
+            background: rgba(255, 215, 0, 0.25);
+            border: 2px solid var(--win-color);
+            box-shadow: 0 0 22px rgba(255, 215, 0, 0.5);
+        }
+
+        @keyframes win-flash {
+            from {
+                background: rgba(255, 215, 0, 0.15);
+                box-shadow: 0 0 14px rgba(255, 215, 0, 0.35);
+            }
+            to {
+                background: rgba(255, 215, 0, 0.35);
+                box-shadow: 0 0 30px rgba(255, 215, 0, 0.7);
+            }
+        }
+
+        .cell.pop-in {
+            animation: pop-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes pop-in {
+            0% {
+                transform: scale(0.4);
+                opacity: 0;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .message {
+            font-size: 1.15rem;
+            font-weight: 600;
+            min-height: 32px;
+            color: var(--subtext);
+            margin-bottom: 16px;
+            transition: all 0.3s ease;
+            letter-spacing: 0.5px;
+        }
+
+        .message.win-x {
+            color: var(--x-color);
+        }
+        .message.win-o {
+            color: var(--o-color);
+        }
+        .message.draw {
+            color: var(--subtext);
+        }
+        .message.win-highlight {
+            color: var(--win-color);
+            text-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+        }
+
+        .btn-reset {
+            background: linear-gradient(135deg, #e94560, #c0392b);
+            color: #fff;
+            border: none;
+            padding: 12px 32px;
+            font-size: 1rem;
+            font-weight: 700;
+            border-radius: 25px;
+            cursor: pointer;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(233, 69, 96, 0.35);
+            -webkit-tap-highlight-color: transparent;
+            outline: none;
+        }
+
+        .btn-reset:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(233, 69, 96, 0.5);
+            background: linear-gradient(135deg, #f0506e, #d44a3d);
+        }
+
+        .btn-reset:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(233, 69, 96, 0.35);
+        }
+
+        .scoreboard {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 18px;
+            font-size: 0.9rem;
+            color: var(--subtext);
+        }
+
+        .score-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+        }
+
+        .score-item .score-num {
+            background: var(--cell-bg);
+            border-radius: 8px;
+            padding: 2px 10px;
+            font-size: 1.1rem;
+            min-width: 32px;
+            text-align: center;
+        }
+
+        .score-item.x-score .score-num {
+            color: var(--x-color);
+        }
+        .score-item.o-score .score-num {
+            color: var(--o-color);
+        }
+
+        @media (max-width: 400px) {
+            .game-container {
+                padding: 20px 15px 18px;
+                border-radius: 12px;
+            }
+            .game-title {
+                font-size: 1.6rem;
+            }
+            .board {
+                gap: 6px;
+                max-width: 260px;
+            }
+            .cell {
+                font-size: 2.5rem;
+                border-radius: 8px;
+            }
+            .btn-reset {
+                padding: 10px 24px;
+                font-size: 0.9rem;
+            }
+            .status-bar {
+                gap: 8px;
+                margin: 12px 0 14px;
+            }
+            .player-indicator {
+                font-size: 0.9rem;
+                padding: 6px 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-title">
+            <span class="x">三</span>子<span class="o">棋</span>
+        </div>
+
+        <div class="status-bar">
+            <div class="player-indicator active-x" id="indicator-x">✕ X</div>
+            <div class="player-indicator" id="indicator-o">◯ O</div>
+        </div>
+
+        <div class="board" id="board">
+            <button class="cell" data-index="0" aria-label="格子 1"></button>
+            <button class="cell" data-index="1" aria-label="格子 2"></button>
+            <button class="cell" data-index="2" aria-label="格子 3"></button>
+            <button class="cell" data-index="3" aria-label="格子 4"></button>
+            <button class="cell" data-index="4" aria-label="格子 5"></button>
+            <button class="cell" data-index="5" aria-label="格子 6"></button>
+            <button class="cell" data-index="6" aria-label="格子 7"></button>
+            <button class="cell" data-index="7" aria-label="格子 8"></button>
+            <button class="cell" data-index="8" aria-label="格子 9"></button>
+        </div>
+
+        <div class="message" id="message">轮到 ✕ X 下棋</div>
+
+        <button class="btn-reset" id="btn-reset">🔄 重新开始</button>
+
+        <div class="scoreboard">
+            <div class="score-item x-score">
+                ✕ X 胜: <span class="score-num" id="score-x">0</span>
+            </div>
+            <div class="score-item o-score">
+                ◯ O 胜: <span class="score-num" id="score-o">0</span>
+            </div>
+            <div class="score-item">
+                平局: <span class="score-num" id="score-draw">0</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // --- 游戏状态 ---
+            const board = Array(9).fill(null);
+            let currentPlayer = 'X'; // 'X' 或 'O'
+            let gameActive = true;
+            let winLine = null; // 获胜的索引数组，用于高亮
+
+            // --- 得分统计 ---
+            let scoreX = 0;
+            let scoreO = 0;
+            let scoreDraw = 0;
+
+            // --- DOM 元素 ---
+            const cells = document.querySelectorAll('.cell');
+            const messageEl = document.getElementById('message');
+            const indicatorX = document.getElementById('indicator-x');
+            const indicatorO = document.getElementById('indicator-o');
+            const btnReset = document.getElementById('btn-reset');
+            const scoreXEl = document.getElementById('score-x');
+            const scoreOEl = document.getElementById('score-o');
+            const scoreDrawEl = document.getElementById('score-draw');
+
+            // --- 胜利组合 ---
+            const winCombinations = [
+                [0, 1, 2],
+                [3, 4, 5],
+                [6, 7, 8],
+                [0, 3, 6],
+                [1, 4, 7],
+                [2, 5, 8],
+                [0, 4, 8],
+                [2, 4, 6]
+            ];
+
+            // --- 更新指示器 ---
+            function updateIndicators() {
+                if (!gameActive && winLine) {
+                    // 有赢家时高亮获胜方
+                    const winner = currentPlayer;
+                    if (winner === 'X') {
+                        indicatorX.classList.add('win-highlight');
+                        indicatorO.classList.remove('win-highlight');
+                    } else {
+                        indicatorO.classList.add('win-highlight');
+                        indicatorX.classList.remove('win-highlight');
+                    }
+                    return;
+                }
+                // 清除高亮
+                indicatorX.classList.remove('win-highlight');
+                indicatorO.classList.remove('win-highlight');
+
+                // 平局时都不高亮
+                if (!gameActive && !winLine) {
+                    indicatorX.classList.remove('active-x', 'active-o');
+                    indicatorO.classList.remove('active-x', 'active-o');
+                    return;
+                }
+
+                // 正常对局中，高亮当前玩家
+                if (currentPlayer === 'X') {
+                    indicatorX.classList.add('active-x');
+                    indicatorX.classList.remove('active-o');
+                    indicatorO.classList.remove('active-x', 'active-o');
+                } else {
+                    indicatorO.classList.add('active-o');
+                    indicatorO.classList.remove('active-x');
+                    indicatorX.classList.remove('active-x', 'active-o');
+                }
+            }
+
+            // --- 更新消息 ---
+            function updateMessage(text, className = '') {
+                messageEl.textContent = text;
+                messageEl.className = 'message ' + className;
+            }
+
+            // --- 检查胜负或平局 ---
+            function checkGameState() {
+                // 检查胜利
+                for (const combo of winCombinations) {
+                    const [a, b, c] = combo;
+                    if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                        return { type: 'win', winner: board[a], line: combo };
+                    }
+                }
+                // 检查是否满盘
+                if (board.every(cell => cell !== null)) {
+                    return { type: 'draw' };
+                }
+                return { type: 'ongoing' };
+            }
+
+            // --- 处理胜利 ---
+            function handleWin(winner, line) {
+                gameActive = false;
+                winLine = line;
+
+                // 高亮获胜格子
+                line.forEach(index => {
+                    cells[index].classList.add('win-cell');
+                });
+
+                // 更新得分
+                if (winner === 'X') {
+                    scoreX++;
+                    scoreXEl.textContent = scoreX;
+                    updateMessage('🎉 玩家 X 获胜！', 'win-x win-highlight');
+                } else {
+                    scoreO++;
+                    scoreOEl.textContent = scoreO;
+                    updateMessage('🎉 玩家 O 获胜！', 'win-o win-highlight');
+                }
+
+                updateIndicators();
+
+                // 禁用所有格子
+                cells.forEach(cell => cell.classList.add('game-over'));
+            }
+
+            // --- 处理平局 ---
+            function handleDraw() {
+                gameActive = false;
+                winLine = null;
+                scoreDraw++;
+                scoreDrawEl.textContent = scoreDraw;
+                updateMessage('🤝 平局！', 'draw');
+                updateIndicators();
+
+                // 禁用所有格子
+                cells.forEach(cell => cell.classList.add('game-over'));
+            }
+
+            // --- 切换玩家 ---
+            function switchPlayer() {
+                currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                updateIndicators();
+                if (gameActive) {
+                    updateMessage(`轮到 ${currentPlayer === 'X' ? '✕ X' : '◯ O'} 下棋`);
+                }
+            }
+
+            // --- 处理格子点击 ---
+            function handleCellClick(e) {
+                const cell = e.currentTarget;
+                const index = parseInt(cell.dataset.index);
+
+                // 如果游戏已结束、格子已填，则不处理
+                if (!gameActive || board[index] !== null) return;
+
+                // 放置棋子
+                board[index] = currentPlayer;
+                cell.textContent = currentPlayer === 'X' ? '✕' : '◯';
+                cell.classList.add('filled');
+                cell.classList.add(currentPlayer === 'X' ? 'x-symbol' : 'o-symbol');
+                cell.classList.add('pop-in');
+
+                // 移除动画类（防止重复触发）
+                setTimeout(() => {
+                    cell.classList.remove('pop-in');
+                }, 300);
+
+                // 检查游戏状态
+                const state = checkGameState();
+                if (state.type === 'win') {
+                    handleWin(state.winner, state.line);
+                } else if (state.type === 'draw') {
+                    handleDraw();
+                } else {
+                    // 继续游戏
+                    switchPlayer();
+                }
+            }
+
+            // --- 重置游戏 ---
+            function resetGame() {
+                // 清空棋盘数据
+                board.fill(null);
+                currentPlayer = 'X';
+                gameActive = true;
+                winLine = null;
+
+                // 清空 UI
+                cells.forEach(cell => {
+                    cell.textContent = '';
+                    cell.classList.remove('filled', 'x-symbol', 'o-symbol', 'win-cell', 'game-over', 'pop-in');
+                });
+
+                // 更新指示器和消息
+                updateIndicators();
+                updateMessage('轮到 ✕ X 下棋');
+            }
+
+            // --- 完整重置（包括分数）---
+            function fullReset() {
+                resetGame();
+                scoreX = 0;
+                scoreO = 0;
+                scoreDraw = 0;
+                scoreXEl.textContent = '0';
+                scoreOEl.textContent = '0';
+                scoreDrawEl.textContent = '0';
+            }
+
+            // --- 初始化事件监听 ---
+            function init() {
+                cells.forEach(cell => {
+                    cell.addEventListener('click', handleCellClick);
+                });
+
+                btnReset.addEventListener('click', () => {
+                    fullReset();
+                });
+
+                // 初始状态
+                updateIndicators();
+                updateMessage('轮到 ✕ X 下棋');
+                scoreXEl.textContent = '0';
+                scoreOEl.textContent = '0';
+                scoreDrawEl.textContent = '0';
+            }
+
+            // 启动
+            init();
+        })();
+    </script>
+</body>
+</html>
